@@ -1,17 +1,29 @@
 const {exec} = require('child_process'),
   moment = require('moment'),
   fs = require('fs'),
-  Admzip = require('adm-zip');
+  Admzip = require('adm-zip'),
+  path = require('path'),
+  isLoggingEnabled = false,
+  logTime = (TIME) => `[${TIME}]:`;
 
 // Zip Utilites Used to create, delete Zips
-function CreateZIP(ZIP_NAME) {
-  let zip = new Admzip();
-  zip.addLocalFile(path.resolve(`tmp/${ZIP_NAME}`));
-  zip.writeZip(path.resolve(`tmp/${ZIP_NAME}.zip`))
+function CreateZIP({ZIP_NAME, timezoneOffset}) {
+  return new Promise((resolve, reject) => {
+    try {
+      let zip = new Admzip();
+      zip.addLocalFile(path.resolve(`tmp/${ZIP_NAME}`));
+      zip.writeZip(path.resolve(`tmp/${ZIP_NAME}.zip`))
+
+    } catch (e) {
+      console.error(`${logTime(currentTime(timezoneOffset))} ${e.message}`)
+      reject({error: 1, message: e.message})
+    }
+    resolve({error: 0, message: "Successfully Zipped"})
+  });
 }
 
-function DeleteZIP(ZIP_NAME) {
-  fs.unlink(path.resolve(ZIP_NAME + ".zip"), (err) => {
+function Delete({ZIP_NAME, timezoneOffset}) {
+  fs.unlink(path.resolve(ZIP_NAME), (err) => {
     if (err) {
       console.error(`${logTime(currentTime(timezoneOffset))} ${err.message}`)
     } else {
@@ -22,7 +34,7 @@ function DeleteZIP(ZIP_NAME) {
 
 // S3 Utils Used to check if provided bucket exists If it does not exists then
 // it can create one, and then use it.  Also used to upload File
-function ListBuckets() {
+function ListBuckets({timezoneOffset, S3}) {
   return new Promise((resolve, reject) => {
     S3.listBuckets((err, data) => {
       if (err) {
@@ -35,21 +47,30 @@ function ListBuckets() {
 
       if (!doesBucketExists) {
         console.log(`${logTime(currentTime(timezoneOffset))} Bucket does not exists!\n${logTime(currentTime(timezoneOffset))} Creating one now!`)
-        this.CreateBucket()
+        reject({error: 1, message: "Bucket Does not exists", code: "BENOENT"})
       } else {
-
-        // this.CreateBucket()
+        resolve({error: 0, message: "Bucket Exists, Proceed!", code: "OK", BURL: data.Location})
       }
     });
   });
 }
 
-function CreateBucket() {
-  // console.log(this.bucketURL)
+function CreateBucket({S3, bucketParams, timezoneOffset}) {
+  return new Promise((resolve, reject) => {
+    S3.createBucket(bucketParams, (err, data) => {
+      if (err) {
+        console.error(`${logTime(currentTime(timezoneOffset))} ${err.message}`)
+        reject({error: 1, message: err.message})
+      }
+      if (data) {
+        console.log(`${logTime(currentTime(timezoneOffset))} Successfully created Bucket\n${logTime(currentTime(timezoneOffset))} URL: ${data.Location}`)
+        resolve({error: 0, url: data.Location, message: 'Sucessfully created URL'})
+      }
+    })
+  });
 }
 
-function UploadFile({ZIP_NAME, backupDir, bucketName, timezoneOffset}) {
-  // this.bucketURL = `http://${doesBucketExists.Name}.s3.amazonaws.com`
+function UploadFile({ZIP_NAME, backupDir, bucketName, timezoneOffset, S3}) {
   let fileStream = fs.createReadStream(path.resolve(`tmp/${ZIP_NAME}.zip`));
 
   fileStream.on('error', (err) => {
@@ -75,7 +96,7 @@ function UploadFile({ZIP_NAME, backupDir, bucketName, timezoneOffset}) {
   })
 }
 
-function BackupMongo() {
+function BackupMongo({timezoneOffset, name, config}) {
   // Default command, does not considers username or password
   let command = `mongodump -h ${host} -d ${name} -o ${path.resolve(`tmp/${currentTime(timezoneOffset)}`)}`
   // When Username and password is provided
@@ -142,9 +163,9 @@ module.exports = {
       CraeteBucket: CreateBucket
     },
     zip: {
-      Create: CreateZIP,
-      Delete: DeleteZIP
-    }
+      Create: CreateZIP
+    },
+    Delete: Delete
   },
   checkConfig: checkConfig,
   currentTime: currentTime
