@@ -1,0 +1,35 @@
+{
+  "name": "s3-mongo-backup",
+  "version": "1.0.0",
+  "description": "Mongo Backups to S3 and local backups",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishanjain28/s3-mongo-backup.git"
+  },
+  "keywords": [
+    "Mongodb",
+    "S3",
+    "Backup",
+    "Local",
+    "Backup",
+    "nodejs",
+    "AWS",
+    "amazon"
+  ],
+  "author": "Ishan Jain <github.com/ishanjain28>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ishanjain28/s3-mongo-backup/issues"
+  },
+  "homepage": "https://github.com/ishanjain28/s3-mongo-backup#readme",
+  "dependencies": {
+    "adm-zip": "^0.4.7",
+    "aws-sdk": "^2.39.0",
+    "lowdb": "^0.16.0",
+    "moment": "^2.18.1"
+  }
+}
