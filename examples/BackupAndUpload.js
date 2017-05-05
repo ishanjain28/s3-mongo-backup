@@ -1,4 +1,4 @@
-const backup = require('./backup')
+const backup = require('../backup')
 
 backup
   .CreateBackupZIP()

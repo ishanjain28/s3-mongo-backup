@@ -1,9 +1,10 @@
-const Admzip = require('adm-zip'),
-  path = require('path'),
-  zipFolder = require('zip-folder'),
+const path = require('path'),
   fs = require('fs'),
+  exec = require('child_process').exec,
   rimraf = require('rimraf'),
-  moment = require('moment'), {exec} = require('child_process');
+  moment = require('moment'),
+  zipFolder = require('zip-folder'),
+  AWS = require('aws-sdk');
 
 let BACKUP_PATH = (ZIP_NAME) => path.resolve(`.tmp/${ZIP_NAME}`)
 
@@ -14,6 +15,19 @@ function ValidateConfig(config) {
     return true;
   }
   return false;
+}
+
+function AWSSetup(config) {
+
+  return Promise.resolve(resolve => {
+    AWS
+      .config
+      .update({accessKeyId: config.S3.accessKey, secretAccessKey: config.S3.secretAccessKey, region: config.S3.region})
+
+    let s3 = new AWS.S3();
+
+    resolve(s3)
+  })
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
@@ -57,7 +71,6 @@ function BackupMongoDatabase(timezoneOffset, config) {
 }
 
 function CreateZIP(ZIP_NAME) {
-
   return new Promise((resolve, reject) => {
     zipFolder(BACKUP_PATH(ZIP_NAME), BACKUP_PATH(ZIP_NAME + ".zip"), err => {
       if (err) {
@@ -86,6 +99,47 @@ function DeleteBackupFolder(ZIP_NAME) {
   })
 }
 
+// S3 Utils Used to check if provided bucket exists If it does not exists then
+// it can create one, and then use it.  Also used to upload File
+function ListBuckets(S3, config) {
+  const {bucketName} = config.S3;
+
+  return new Promise((resolve, reject) => {
+    S3.listBuckets((err, data) => {
+      if (err) {
+        reject({error: 1, message: err})
+      } else {
+        let doesBucketExists = data
+          .Buckets
+          .find(a => a.Name === bucketName);
+
+        if (!doesBucketExists) {
+          reject({error: 1, message: "Bucket Does not exists", code: "BENOENT"})
+        } else {
+          resolve({error: 0, message: "Bucket Exists, Proceed!", code: "OK", BUCKET_URL: data.Location})
+        }
+      }
+    });
+  });
+}
+
+function CreateBucket(S3, config) {
+  const {bucketName, accessPerm} = config.S3;
+
+  return new Promise((resolve, reject) => {
+    S3.createBucket({
+      bucketName: bucketName,
+      accessPerm: accessPerm
+    }, (err, data) => {
+      if (err) {
+        reject({error: 1, message: err.message})
+      } else {
+        resolve({error: 0, url: data.Location, message: 'Sucessfully created Bucket'})
+      }
+    })
+  })
+}
+
 function CreateBackup() {
   return BackupMongoDatabase(null, {
     mongodb: {
@@ -106,6 +160,10 @@ function CreateBackup() {
   }, error => {
     return error
   })
+}
+
+function UploadBackup() {
+  return AWSSetup().then(S3 => {});
 }
 
 module.exports = {
