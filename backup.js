@@ -11,7 +11,7 @@ let BACKUP_PATH = (ZIP_NAME) => path.resolve(`.tmp/${ZIP_NAME}`)
 // Checks provided Configuration, Rejects if important keys from config are
 // missing
 function ValidateConfig(config) {
-  if (config && config.mongodb && config.mongodb.host && config.mongodb.name && config.s3.access && config.s3.secret && config.s3.region && config.s3.accessPerm && config.s3.bucketName) {
+  if (config && config.mongodb && config.mongodb.host && config.mongodb.name && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.accessPerm && config.s3.bucketName) {
     return true;
   }
   return false;
@@ -19,15 +19,13 @@ function ValidateConfig(config) {
 
 function AWSSetup(config) {
 
-  return Promise.resolve(resolve => {
-    AWS
-      .config
-      .update({accessKeyId: config.S3.accessKey, secretAccessKey: config.S3.secretAccessKey, region: config.S3.region})
+  AWS
+    .config
+    .update({accessKeyId: config.s3.accessKey, secretAccessKey: config.s3.secretKey, region: config.s3.region})
 
-    let s3 = new AWS.S3();
+  let s3 = new AWS.S3();
 
-    resolve(s3)
-  })
+  return s3
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
@@ -102,7 +100,7 @@ function DeleteBackupFolder(ZIP_NAME) {
 // S3 Utils Used to check if provided bucket exists If it does not exists then
 // it can create one, and then use it.  Also used to upload File
 function ListBuckets(S3, config) {
-  const {bucketName} = config.S3;
+  const {bucketName} = config.s3;
 
   return new Promise((resolve, reject) => {
     S3.listBuckets((err, data) => {
@@ -114,7 +112,7 @@ function ListBuckets(S3, config) {
           .find(a => a.Name === bucketName);
 
         if (!doesBucketExists) {
-          reject({error: 1, message: "Bucket Does not exists", code: "BENOENT"})
+          resolve({error: 0, message: "Bucket Does not exists", code: "BENOENT"})
         } else {
           resolve({error: 0, message: "Bucket Exists, Proceed!", code: "OK", BUCKET_URL: data.Location})
         }
@@ -124,12 +122,15 @@ function ListBuckets(S3, config) {
 }
 
 function CreateBucket(S3, config) {
-  const {bucketName, accessPerm} = config.S3;
+  const {bucketName, accessPerm, region} = config.s3;
 
   return new Promise((resolve, reject) => {
     S3.createBucket({
-      bucketName: bucketName,
-      accessPerm: accessPerm
+      Bucket: bucketName,
+      ACL: accessPerm || "private",
+      CreateBucketConfiguration: {
+        LocationConstraint: region
+      }
     }, (err, data) => {
       if (err) {
         reject({error: 1, message: err.message})
@@ -140,17 +141,53 @@ function CreateBucket(S3, config) {
   })
 }
 
-function CreateBackup() {
-  return BackupMongoDatabase(null, {
-    mongodb: {
-      host: "localhost",
-      "name": "zion17"
+function UploadFileToS3(S3, ZIP_NAME, bucketName) {
+  return new Promise((resolve, reject) => {
+    let fileStream = fs.createReadStream(BACKUP_PATH(ZIP_NAME))
+
+    fileStream.on('error', err => {
+      return reject({error: 1, message: err.message});
+    });
+
+    let uploadParams = {
+      Bucket: bucketName,
+      Key: ZIP_NAME,
+      Body: fileStream
     }
-  }).then(result => {
+
+    S3.upload(uploadParams, (err, data) => {
+      if (err) {
+        reject({error: 1, message: err.message})
+      }
+
+      if (data) {
+        resolve({error: 1, message: "Upload Successfull", location: data.Location})
+      }
+    })
+  })
+}
+
+function UploadBackup(config) {
+  let s3 = AWSSetup(config)
+
+  return ListBuckets(s3, config).then(onResolve => {
+    if (onResolve.code === "BENOENT") {
+      return CreateBucket(s3, config).then(onResolve => {}, onReject => {})
+    } else {}
+  }, ListBucketReject => {
+    return ListBucketReject
+  });
+}
+
+function CreateBackup(config) {
+  return BackupMongoDatabase(config.timezoneOffset, config).then(result => {
     return CreateZIP(result.backupFolderName).then(successResult => {
       return DeleteBackupFolder(successResult.folderName).then(onResolve => {
-        return {error: 0, message: "Successfully Zipped Database Backup", folderName: onResolve.folderName}
-        // console.log(onResolve);
+        return {
+          error: 0,
+          message: "Successfully Zipped Database Backup",
+          zipName: onResolve.folderName + ".zip"
+        }
       }, error => {
         return error
       })
@@ -162,10 +199,25 @@ function CreateBackup() {
   })
 }
 
-function UploadBackup() {
-  return AWSSetup().then(S3 => {});
+function BackupAndUpload(config) {
+  let isValidConfig = ValidateConfig(config)
+
+  if (isValidConfig) {
+    return CreateBackup(config).then(backupResult => {
+      return UploadBackup(config).then(res => {
+        return Promise.resolve(res)
+      }, err => {
+        return Promise.reject(err)
+      });
+    }, backupResult => {
+      return Promise.reject(backupResult)
+    });
+  } else {
+    return Promise.reject({error: 1, message: "Invalid Configuration"})
+  }
 }
 
 module.exports = {
-  CreateBackupZIP: CreateBackup
+  CreateBackupZIP: CreateBackup,
+  BackupAndUpload: BackupAndUpload
 }
