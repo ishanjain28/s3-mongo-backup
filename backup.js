@@ -233,7 +233,4 @@ function BackupAndUpload(config) {
     return Promise.reject({error: 1, message: "Invalid Configuration"})
   }
 }
-
-module.exports = {
-  BackupAndUpload: BackupAndUpload
-}
+module.exports = BackupAndUpload

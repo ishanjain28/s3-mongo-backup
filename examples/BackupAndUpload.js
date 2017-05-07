@@ -1,10 +1,12 @@
-const backup = require('../backup')
+const backup = require("../backup")
 
-let config = {
+var backupConfig = {
   mongodb: {
-    host: "Database-host", //Database host
-    name: "database-name" //Database name
-    // Optional Values username: "Username-to-use", password: "Password-to-use"
+    host: "localhost", //Database host
+    name: "" //Database name
+    // Optional Values
+    //username: "", //Username to use to connect to database
+    //password: "" //Password to use to connect to database
   },
   s3: {
     accessKey: "public-key", //AccessKey
@@ -15,3 +17,20 @@ let config = {
   },
   timezoneOffset: 300 //Timezone, Used in naming backups, It is assumed to be in hours if less than 16 and in minutes otherwise
 }
+
+//  For one time backup
+backup(config).then(resolved => {
+  console.log(resolved)
+}, rejected => {
+  console.error(rejected)
+});;
+
+// For backups with some intervals.
+
+setInterval(() => {
+  backup(config).then(resolved => {
+    console.log(resolved)
+  }, rejected => {
+    console.error(rejected)
+  });
+}, 60 * 60 * 3); // Every 3 hours
