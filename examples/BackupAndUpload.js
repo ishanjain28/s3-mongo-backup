@@ -4,9 +4,7 @@ let config = {
   mongodb: {
     host: "Database-host", //Database host
     name: "database-name" //Database name
-    // Optional Values
-    // username: "Username-to-use",
-    // password: "Password-to-use"
+    // Optional Values username: "Username-to-use", password: "Password-to-use"
   },
   s3: {
     accessKey: "public-key", //AccessKey
@@ -15,5 +13,5 @@ let config = {
     accessPerm: "private", //S3 Bucket Privacy, Private is HIGHLY Recommended
     bucketName: "awesome-bucket" //Bucket Name
   },
-  timezoneOffset: 300 //Timezone, Used in naming backups
+  timezoneOffset: 300 //Timezone, Used in naming backups, It is assumed to be in hours if less than 16 and in minutes otherwise
 }

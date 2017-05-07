@@ -235,6 +235,5 @@ function BackupAndUpload(config) {
 }
 
 module.exports = {
-  CreateBackupZIP: CreateBackup,
   BackupAndUpload: BackupAndUpload
 }
