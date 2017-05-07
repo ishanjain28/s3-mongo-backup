@@ -114,7 +114,7 @@ function ListBuckets(S3, config) {
         if (!doesBucketExists) {
           resolve({error: 0, message: "Bucket Does not exists", code: "BENOENT"})
         } else {
-          resolve({error: 0, message: "Bucket Exists, Proceed!", code: "OK", BUCKET_URL: data.Location})
+          resolve({error: 0, message: "Bucket Exists, Proceed!", code: "OK"})
         }
       }
     });
@@ -143,7 +143,7 @@ function CreateBucket(S3, config) {
 
 function UploadFileToS3(S3, ZIP_NAME, bucketName) {
   return new Promise((resolve, reject) => {
-    let fileStream = fs.createReadStream(BACKUP_PATH(ZIP_NAME))
+    let fileStream = fs.createReadStream(BACKUP_PATH(ZIP_NAME));
 
     fileStream.on('error', err => {
       return reject({error: 1, message: err.message});
@@ -159,21 +159,28 @@ function UploadFileToS3(S3, ZIP_NAME, bucketName) {
       if (err) {
         reject({error: 1, message: err.message})
       }
-
       if (data) {
-        resolve({error: 1, message: "Upload Successfull", location: data.Location})
+        resolve({error: 0, message: "Upload Successfull", data: data})
       }
-    })
-  })
+    });
+  });
 }
 
-function UploadBackup(config) {
+function UploadBackup(config, backupResult) {
   let s3 = AWSSetup(config)
 
-  return ListBuckets(s3, config).then(onResolve => {
-    if (onResolve.code === "BENOENT") {
-      return CreateBucket(s3, config).then(onResolve => {}, onReject => {})
-    } else {}
+  return ListBuckets(s3, config).then(resolvedListBuckets => {
+    if (resolvedListBuckets.code === "BENOENT") {
+      return CreateBucket(s3, config).then(resolvedCreateBucket => {
+        // Bucket Created Successfully, Start Uploading
+        return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName);
+      }, createBucketReject => {
+        return createBucketReject
+      });
+    } else {
+      // Bucket Already Exists, Start Uploading File
+      return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName);
+    }
   }, ListBucketReject => {
     return ListBucketReject
   });
@@ -183,28 +190,29 @@ function CreateBackup(config) {
   return BackupMongoDatabase(config.timezoneOffset, config).then(result => {
     return CreateZIP(result.backupFolderName).then(successResult => {
       return DeleteBackupFolder(successResult.folderName).then(onResolve => {
-        return {
+        return Promise.resolve({
           error: 0,
           message: "Successfully Zipped Database Backup",
           zipName: onResolve.folderName + ".zip"
-        }
+        })
       }, error => {
-        return error
+        return Promise.reject(error)
       })
     }, error => {
-      return error
+      return Promise.reject(error)
     })
   }, error => {
-    return error
+    return Promise.reject(error)
   })
 }
 
 function BackupAndUpload(config) {
+
   let isValidConfig = ValidateConfig(config)
 
   if (isValidConfig) {
     return CreateBackup(config).then(backupResult => {
-      return UploadBackup(config).then(res => {
+      return UploadBackup(config, backupResult).then(res => {
         return Promise.resolve(res)
       }, err => {
         return Promise.reject(err)
