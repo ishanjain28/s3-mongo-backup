@@ -30,6 +30,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
        accessPerm: "private", //S3 Bucket Privacy, Private is HIGHLY Recommended
        bucketName: "awesome-bucket" //Bucket Name
     },
+    keepLocalBackups: false, //If true, It will not delete local copy of backup
     timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
     }
 

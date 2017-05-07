@@ -97,6 +97,19 @@ function DeleteBackupFolder(ZIP_NAME) {
   })
 }
 
+function DeleteLocalBackup(ZIP_NAME, resolvedUploadFileToS3) {
+
+  return new Promise((resolve, reject) => {
+    fs.unlink(BACKUP_PATH(ZIP_NAME), (err) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(resolvedUploadFileToS3);
+      }
+    })
+  })
+}
+
 // S3 Utils Used to check if provided bucket exists If it does not exists then
 // it can create one, and then use it.  Also used to upload File
 function ListBuckets(S3, config) {
@@ -177,13 +190,28 @@ function UploadBackup(config, backupResult) {
       // If it does not exists, Create a bucket
       return CreateBucket(s3, config).then(resolvedCreateBucket => {
         // Bucket Created Successfully, Start Uploading
-        return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName);
+        return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(resolvedUploadFileToS3 => {
+          if (!config.keepLocalBackups) {
+            return DeleteLocalBackup(backupResult.zipName, resolvedUploadFileToS3)
+          }
+          return Promise.resolve(resolvedUploadFileToS3)
+        }, UploadFileToS3Reject => {
+          return Promise.reject(UploadFileToS3Reject)
+        })
       }, createBucketReject => {
         return Promise.reject(createBucketReject)
       });
     } else {
       // Bucket Already Exists, Start Uploading File
-      return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName);
+      return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(resolvedUploadFileToS3 => {
+        if (!config.keepLocalBackups) {
+          return DeleteLocalBackup(backupResult.zipName, resolvedUploadFileToS3)
+        }
+
+        return Promise.resolve(resolvedUploadFileToS3)
+      }, UploadFileToS3Reject => {
+        return Promise.reject(UploadFileToS3Reject)
+      })
     }
   }, ListBucketReject => {
     return Promise.reject(ListBucketReject)
@@ -233,4 +261,5 @@ function BackupAndUpload(config) {
     return Promise.reject({error: 1, message: "Invalid Configuration"})
   }
 }
+
 module.exports = BackupAndUpload
