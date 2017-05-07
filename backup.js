@@ -167,34 +167,41 @@ function UploadFileToS3(S3, ZIP_NAME, bucketName) {
 }
 
 function UploadBackup(config, backupResult) {
+  // Make S3 instance from provided Configuration
   let s3 = AWSSetup(config)
 
+  // List all available Buckets, to see if the provided in `bucketName` Exists
   return ListBuckets(s3, config).then(resolvedListBuckets => {
+
     if (resolvedListBuckets.code === "BENOENT") {
+      // If it does not exists, Create a bucket
       return CreateBucket(s3, config).then(resolvedCreateBucket => {
         // Bucket Created Successfully, Start Uploading
         return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName);
       }, createBucketReject => {
-        return createBucketReject
+        return Promise.reject(createBucketReject)
       });
     } else {
       // Bucket Already Exists, Start Uploading File
       return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName);
     }
   }, ListBucketReject => {
-    return ListBucketReject
+    return Promise.reject(ListBucketReject)
   });
 }
 
 function CreateBackup(config) {
+  // Backup Mongo Database
   return BackupMongoDatabase(config.timezoneOffset, config).then(result => {
+    // Create a zip
     return CreateZIP(result.backupFolderName).then(successResult => {
+      // Delete the folder in which database was stored, because we only need zip
       return DeleteBackupFolder(successResult.folderName).then(onResolve => {
         return Promise.resolve({
           error: 0,
           message: "Successfully Zipped Database Backup",
           zipName: onResolve.folderName + ".zip"
-        })
+        });
       }, error => {
         return Promise.reject(error)
       })
@@ -207,11 +214,13 @@ function CreateBackup(config) {
 }
 
 function BackupAndUpload(config) {
-
+  // Check if the configuration is valid
   let isValidConfig = ValidateConfig(config)
 
   if (isValidConfig) {
+    // Create a backup of database
     return CreateBackup(config).then(backupResult => {
+      // Upload it to S3
       return UploadBackup(config, backupResult).then(res => {
         return Promise.resolve(res)
       }, err => {
