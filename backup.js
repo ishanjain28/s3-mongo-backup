@@ -106,7 +106,7 @@ function DeleteLocalBackup(ZIP_NAME) {
       if (err) {
         reject(err)
       } else {
-        resolve({error: 0, message: "Deleted Local backup", zipName: zipName});
+        resolve({error: 0, message: "Deleted Local backup", zipName: ZIP_NAME});
       }
     })
   })
@@ -155,7 +155,7 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
 
       if (data) {
         if (!config.keepLocalBackups) {
-          DeleteLocalBackup(backupResult.zipName).then(deleteLocalBackupResult => {
+          DeleteLocalBackup(ZIP_NAME).then(deleteLocalBackupResult => {
             resolve({error: 0, message: "Upload Successful, Deleted Local Copy of Backup", data: data});
           }, deleteLocalBackupError => {
             resolve({error: 1, message: deleteLocalBackupError, data: data})

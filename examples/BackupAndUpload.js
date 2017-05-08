@@ -1,11 +1,12 @@
 const backup = require("../backup")
+const AWS = require('aws-sdk')
 
 var backupConfig = {
   mongodb: {
     host: "localhost", //Database host
     name: "" //Database name
-    // Optional Values 
-    // username: "", //Username to use to connect to database
+    // Optional Values
+    //  username: "", //Username to use to connect to database
     // password: "" //Password to use to connect to database
   },
   s3: {
@@ -15,7 +16,7 @@ var backupConfig = {
     accessPerm: "private", //S3 Bucket Privacy, Private is HIGHLY Recommended
     bucketName: "" //Bucket Name
   },
-  keepLocalBackups: true, //If true, It will not delete local copy of backup
+  keepLocalBackups: false, //If true, It will not delete local copy of backup
   timezoneOffset: 300 //Timezone, Used in naming backups, It is assumed to be in hours if less than 16 and in minutes otherwise
 }
 
@@ -33,4 +34,4 @@ setInterval(() => {
   }, rejected => {
     console.error(rejected)
   });
-}, 60 * 60 * 3); // Every 3 hours
+}, 60 * 60 * 3 * 1000); //Every 3 hours
