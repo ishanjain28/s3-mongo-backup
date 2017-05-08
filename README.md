@@ -50,7 +50,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
 
 > See examples directory for more examples
 
-### TimezoneO offset's Purpose
+### Timezone offset's Purpose
 
 Database zip files are stored in format `{database_name}_{YYYY-MM-DDTHH:mm:ss}`. Here, If you don't provide a Timezone offset, It'll assume UTC timezone and name all the backups accordingly. Now, If something goes wrong at "2:00 PM" in your timezone and you need to restore a backup made at "1:00 PM" in your timezone, You'll have to change UTC time to your time and then see which backup you have to restore. 
 
