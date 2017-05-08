@@ -40,21 +40,23 @@ function currentTime(timezoneOffset) {
   }
 }
 
-function BackupMongoDatabase(timezoneOffset, config) {
+function BackupMongoDatabase(config) {
   return new Promise((resolve, reject) => {
-    let CURRENT_TIME = currentTime(timezoneOffset)
 
     const {host, name} = config.mongodb
+    const {timezoneOffset} = config
+    let DB_BACKUP_NAME = `${name}_${currentTime(timezoneOffset)}`
+
     // Default command, does not considers username or password
-    let command = `mongodump -h ${host} -d ${name} -o ${BACKUP_PATH(CURRENT_TIME)}`
+    let command = `mongodump -h ${host} -d ${name} -o ${BACKUP_PATH(DB_BACKUP_NAME)}`
 
     // When Username and password is provided
     if (config.mongodb.username && config.mongodb.password) {
-      command = `mongodump -h ${host} -d ${name} -p ${config.mongodb.password} -u ${config.mongodb.username} -o ${BACKUP_PATH(CURRENT_TIME)}`
+      command = `mongodump -h ${host} -d ${name} -p ${config.mongodb.password} -u ${config.mongodb.username} -o ${BACKUP_PATH(DB_BACKUP_NAME)}`
     }
     // When Username is provided
     if (config.mongodb.username && !config.mongodb.password) {
-      command = `mongodump -h ${host} -d ${name} -u ${config.mongodb.username} -o ${BACKUP_PATH(CURRENT_TIME)}`
+      command = `mongodump -h ${host} -d ${name} -u ${config.mongodb.username} -o ${BACKUP_PATH(DB_BACKUP_NAME)}`
     }
 
     exec(command, (err, stdout, stderr) => {
@@ -62,49 +64,49 @@ function BackupMongoDatabase(timezoneOffset, config) {
         // This error is dangerous, So If this happened, Just QUIT!
         reject({error: 1, message: err.message})
       } else {
-        resolve({error: 0, message: "Created Backup Successfully", backupFolderName: CURRENT_TIME})
+        resolve({error: 0, message: "Created Backup Successfully", backupFolderName: DB_BACKUP_NAME})
       }
     })
   })
 }
 
-function CreateZIP(ZIP_NAME) {
+function CreateZIP(DB_FOLDER_NAME) {
   return new Promise((resolve, reject) => {
-    zipFolder(BACKUP_PATH(ZIP_NAME), BACKUP_PATH(ZIP_NAME + ".zip"), err => {
+    zipFolder(BACKUP_PATH(DB_FOLDER_NAME), BACKUP_PATH(DB_FOLDER_NAME + ".zip"), err => {
       if (err) {
         reject({error: 1, message: e})
       } else {
         resolve({
           error: 0,
           message: "Successfully Zipped Database Backup",
-          zipName: ZIP_NAME + ".zip",
-          folderName: ZIP_NAME
-        })
+          zipName: DB_FOLDER_NAME + ".zip",
+          folderName: DB_FOLDER_NAME
+        });
       }
-    })
-  })
+    });
+  });
 }
 
-function DeleteBackupFolder(ZIP_NAME) {
+function DeleteBackupFolder(DB_FOLDER_NAME) {
   return new Promise((resolve, reject) => {
-    rimraf(BACKUP_PATH(ZIP_NAME), (err) => {
+    rimraf(BACKUP_PATH(DB_FOLDER_NAME), (err) => {
       if (err) {
         reject({error: 1, message: err.message})
       } else {
-        resolve({error: 0, message: `Deleted ${ZIP_NAME}`, folderName: ZIP_NAME})
+        resolve({error: 0, message: `Deleted ${DB_FOLDER_NAME}`, folderName: DB_FOLDER_NAME})
       }
     })
   })
 }
 
-function DeleteLocalBackup(ZIP_NAME, resolvedUploadFileToS3) {
+function DeleteLocalBackup(ZIP_NAME) {
 
   return new Promise((resolve, reject) => {
     fs.unlink(BACKUP_PATH(ZIP_NAME), (err) => {
       if (err) {
         reject(err)
       } else {
-        resolve(resolvedUploadFileToS3);
+        resolve({error: 0, message: "Deleted Local backup", zipName: zipName});
       }
     })
   })
@@ -112,28 +114,6 @@ function DeleteLocalBackup(ZIP_NAME, resolvedUploadFileToS3) {
 
 // S3 Utils Used to check if provided bucket exists If it does not exists then
 // it can create one, and then use it.  Also used to upload File
-function ListBuckets(S3, config) {
-  const {bucketName} = config.s3;
-
-  return new Promise((resolve, reject) => {
-    S3.listBuckets((err, data) => {
-      if (err) {
-        reject({error: 1, message: err})
-      } else {
-        let doesBucketExists = data
-          .Buckets
-          .find(a => a.Name === bucketName);
-
-        if (!doesBucketExists) {
-          resolve({error: 0, message: "Bucket Does not exists", code: "BENOENT"})
-        } else {
-          resolve({error: 0, message: "Bucket Exists, Proceed!", code: "OK"})
-        }
-      }
-    });
-  });
-}
-
 function CreateBucket(S3, config) {
   const {bucketName, accessPerm, region} = config.s3;
 
@@ -146,8 +126,10 @@ function CreateBucket(S3, config) {
       }
     }, (err, data) => {
       if (err) {
-        reject({error: 1, message: err.message})
+        console.log(err)
+        reject({error: 1, message: err.message, code: err.code})
       } else {
+        console.log(data)
         resolve({error: 0, url: data.Location, message: 'Sucessfully created Bucket'})
       }
     })
@@ -170,65 +152,55 @@ function UploadFileToS3(S3, ZIP_NAME, bucketName) {
 
     S3.upload(uploadParams, (err, data) => {
       if (err) {
-        reject({error: 1, message: err.message})
+        reject({error: 1, message: err.message, code: err.code})
       }
+
       if (data) {
-        resolve({error: 0, message: "Upload Successfull", data: data})
+        if (!config.keepLocalBackups) {
+          DeleteLocalBackup(backupResult.zipName).then(deleteLocalBackupResult => {
+            resolve({error: 0, message: "Upload Successful, Deleted Local Copy of Backup", data: data});
+          }, deleteLocalBackupError => {
+            resolve({error: 1, message: deleteLocalBackupError, data: data})
+          });
+        } else {
+          resolve({error: 0, message: "Upload Successful", data: data});
+        }
       }
     });
   });
 }
 
 function UploadBackup(config, backupResult) {
-  // Make S3 instance from provided Configuration
-  let s3 = AWSSetup(config)
+  let s3 = AWSSetup(config);
 
-  // List all available Buckets, to see if the provided in `bucketName` Exists
-  return ListBuckets(s3, config).then(resolvedListBuckets => {
-
-    if (resolvedListBuckets.code === "BENOENT") {
-      // If it does not exists, Create a bucket
-      return CreateBucket(s3, config).then(resolvedCreateBucket => {
-        // Bucket Created Successfully, Start Uploading
-        return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(resolvedUploadFileToS3 => {
-          if (!config.keepLocalBackups) {
-            return DeleteLocalBackup(backupResult.zipName, resolvedUploadFileToS3)
-          }
-          return Promise.resolve(resolvedUploadFileToS3)
-        }, UploadFileToS3Reject => {
-          return Promise.reject(UploadFileToS3Reject)
-        })
-      }, createBucketReject => {
-        return Promise.reject(createBucketReject)
-      });
-    } else {
-      // Bucket Already Exists, Start Uploading File
-      return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(resolvedUploadFileToS3 => {
-        if (!config.keepLocalBackups) {
-          return DeleteLocalBackup(backupResult.zipName, resolvedUploadFileToS3)
-        }
-
-        return Promise.resolve(resolvedUploadFileToS3)
-      }, UploadFileToS3Reject => {
-        return Promise.reject(UploadFileToS3Reject)
-      })
+  return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(uploadFileResult => {
+    return Promise.resolve(uploadFileResult)
+  }, uploadFileError => {
+    if (uploadFileError.code === "NoSuchBucket") {
+      return CreateBucket(s3, config).then((createBUucketResolved => {
+        return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(uploadFileResult => {
+          return Promise.resolve(uploadFileResult)
+        }, uploadFileError => {
+          return Promise.reject(uploadFileError)
+        });
+      }, createBucketError => {
+        return Promise.reject(createBucketError);
+      }))
     }
-  }, ListBucketReject => {
-    return Promise.reject(ListBucketReject)
-  });
+  })
 }
 
 function CreateBackup(config) {
   // Backup Mongo Database
-  return BackupMongoDatabase(config.timezoneOffset, config).then(result => {
+  return BackupMongoDatabase(config).then(result => {
     // Create a zip
     return CreateZIP(result.backupFolderName).then(successResult => {
       // Delete the folder in which database was stored, because we only need zip
-      return DeleteBackupFolder(successResult.folderName).then(onResolve => {
+      return DeleteBackupFolder(successResult.folderName).then(backupFolderResult => {
         return Promise.resolve({
           error: 0,
           message: "Successfully Zipped Database Backup",
-          zipName: onResolve.folderName + ".zip"
+          zipName: backupFolderResult.folderName + ".zip"
         });
       }, error => {
         return Promise.reject(error)
