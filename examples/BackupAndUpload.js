@@ -1,5 +1,4 @@
-const backup = require("../backup")
-const AWS = require('aws-sdk')
+const backup = require("s3-mongo-backup")
 
 var backupConfig = {
   mongodb: {
