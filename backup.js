@@ -134,7 +134,7 @@ function CreateBucket(S3, config) {
   })
 }
 
-function UploadFileToS3(S3, ZIP_NAME, bucketName) {
+function UploadFileToS3(S3, ZIP_NAME, config) {
   return new Promise((resolve, reject) => {
     let fileStream = fs.createReadStream(BACKUP_PATH(ZIP_NAME));
 
@@ -143,7 +143,7 @@ function UploadFileToS3(S3, ZIP_NAME, bucketName) {
     });
 
     let uploadParams = {
-      Bucket: bucketName,
+      Bucket: config.s3.bucketName,
       Key: ZIP_NAME,
       Body: fileStream
     }
@@ -171,12 +171,12 @@ function UploadFileToS3(S3, ZIP_NAME, bucketName) {
 function UploadBackup(config, backupResult) {
   let s3 = AWSSetup(config);
 
-  return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(uploadFileResult => {
+  return UploadFileToS3(s3, backupResult.zipName, config).then(uploadFileResult => {
     return Promise.resolve(uploadFileResult)
   }, uploadFileError => {
     if (uploadFileError.code === "NoSuchBucket") {
       return CreateBucket(s3, config).then((createBucketResolved => {
-        return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(uploadFileResult => {
+        return UploadFileToS3(s3, backupResult.zipName, config).then(uploadFileResult => {
           return Promise.resolve(uploadFileResult)
         }, uploadFileError => {
           return Promise.reject(uploadFileError)
