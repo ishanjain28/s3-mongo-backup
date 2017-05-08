@@ -21,7 +21,7 @@
     "amazon"
   ],
   "author": "Ishan Jain <github.com/ishanjain28>",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/ishanjain28/s3-mongo-backup/issues"
   },
