@@ -3,7 +3,7 @@ const backup = require("../backup")
 var backupConfig = {
   mongodb: {
     host: "localhost", //Database host
-    name: "zion17" //Database name
+    name: "" //Database name
     // Optional Values 
     // username: "", //Username to use to connect to database
     // password: "" //Password to use to connect to database
@@ -13,7 +13,7 @@ var backupConfig = {
     secretKey: "", //SecretKey
     region: "us-west-2", //S3 Bucket Region
     accessPerm: "private", //S3 Bucket Privacy, Private is HIGHLY Recommended
-    bucketName: "fintrigtest" //Bucket Name
+    bucketName: "" //Bucket Name
   },
   keepLocalBackups: true, //If true, It will not delete local copy of backup
   timezoneOffset: 300 //Timezone, Used in naming backups, It is assumed to be in hours if less than 16 and in minutes otherwise

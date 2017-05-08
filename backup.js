@@ -90,7 +90,7 @@ function CreateZIP(DB_FOLDER_NAME) {
 function DeleteBackupFolder(DB_FOLDER_NAME) {
   return new Promise((resolve, reject) => {
     rimraf(BACKUP_PATH(DB_FOLDER_NAME), (err) => {
-      if (err) {
+      if (err) {  
         reject({error: 1, message: err.message})
       } else {
         resolve({error: 0, message: `Deleted ${DB_FOLDER_NAME}`, folderName: DB_FOLDER_NAME})
@@ -126,10 +126,8 @@ function CreateBucket(S3, config) {
       }
     }, (err, data) => {
       if (err) {
-        console.log(err)
         reject({error: 1, message: err.message, code: err.code})
       } else {
-        console.log(data)
         resolve({error: 0, url: data.Location, message: 'Sucessfully created Bucket'})
       }
     })
@@ -177,7 +175,7 @@ function UploadBackup(config, backupResult) {
     return Promise.resolve(uploadFileResult)
   }, uploadFileError => {
     if (uploadFileError.code === "NoSuchBucket") {
-      return CreateBucket(s3, config).then((createBUucketResolved => {
+      return CreateBucket(s3, config).then((createBucketResolved => {
         return UploadFileToS3(s3, backupResult.zipName, config.s3.bucketName).then(uploadFileResult => {
           return Promise.resolve(uploadFileResult)
         }, uploadFileError => {
@@ -186,6 +184,8 @@ function UploadBackup(config, backupResult) {
       }, createBucketError => {
         return Promise.reject(createBucketError);
       }))
+    } else {
+      return Promise.reject(uploadFileError);
     }
   })
 }
