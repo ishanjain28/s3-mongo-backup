@@ -56,6 +56,8 @@ Database zip files are stored in format `{database_name}_{YYYY-MM-DDTHH:mm:ss}`.
 
 But If you provide a timezone of where ever you live, You can immdiately recognise which backup can be useful. 
 
+To see how to provide Timezone offset, Please refer to [moment#utcOffset](http://momentjs.com/docs/#/manipulating/utc-offset/)
+
 # License
 
 MIT
