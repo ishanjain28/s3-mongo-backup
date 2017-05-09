@@ -5,7 +5,7 @@ var backupConfig = {
     host: "localhost", //Database host
     name: "" //Database name
     // Optional Values
-    //  username: "", //Username to use to connect to database
+    // username: "", //Username to use to connect to database
     // password: "" //Password to use to connect to database
   },
   s3: {

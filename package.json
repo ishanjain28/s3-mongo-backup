@@ -28,8 +28,6 @@
   "homepage": "https://github.com/ishanjain28/s3-mongo-backup#readme",
   "dependencies": {
     "aws-sdk": "^2.39.0",
-    "moment": "^2.18.1",
-    "rimraf": "^2.6.1",
-    "zip-folder": "^1.0.0"
+    "moment": "^2.18.1"
   }
 }

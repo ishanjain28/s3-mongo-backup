@@ -5,7 +5,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
 
 - Supports Promises
 - Uploads Backups to S3
-- ZIPs Backups before Uploading them
+- Uses GZip Compression to reduce Backup Size
 
 # Usage
 
