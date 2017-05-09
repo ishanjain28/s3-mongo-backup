@@ -1,9 +1,7 @@
 const path = require('path'),
   fs = require('fs'),
   exec = require('child_process').exec,
-  rimraf = require('rimraf'),
   moment = require('moment'),
-  zipFolder = require('zip-folder'),
   AWS = require('aws-sdk');
 
 let BACKUP_PATH = (ZIP_NAME) => path.resolve(`.tmp/${ZIP_NAME}`)
@@ -11,7 +9,7 @@ let BACKUP_PATH = (ZIP_NAME) => path.resolve(`.tmp/${ZIP_NAME}`)
 // Checks provided Configuration, Rejects if important keys from config are
 // missing
 function ValidateConfig(config) {
-  if (config && config.mongodb && config.mongodb.host && config.mongodb.name && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region  && config.s3.bucketName) {
+  if (config && config.mongodb && config.mongodb.host && config.mongodb.name && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.bucketName) {
     return true;
   }
   return false;
@@ -41,22 +39,30 @@ function currentTime(timezoneOffset) {
 }
 
 function BackupMongoDatabase(config) {
+
+  // Backups are stored in .tmp directory in Project root
+  fs.mkdir(path.resolve(".tmp"), (err) => {
+    if (err && err.code != "EEXIST") {
+      return Promise.reject(err);
+    }
+  });
+
   return new Promise((resolve, reject) => {
 
     const {host, name} = config.mongodb
     const {timezoneOffset} = config
-    let DB_BACKUP_NAME = `${name}_${currentTime(timezoneOffset)}`
+    let DB_BACKUP_NAME = `${name}_${currentTime(timezoneOffset)}.gz`
 
     // Default command, does not considers username or password
-    let command = `mongodump -h ${host} -d ${name} -o ${BACKUP_PATH(DB_BACKUP_NAME)}`
+    let command = `mongodump -h ${host} -d ${name} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`
 
     // When Username and password is provided
     if (config.mongodb.username && config.mongodb.password) {
-      command = `mongodump -h ${host} -d ${name} -p ${config.mongodb.password} -u ${config.mongodb.username} -o ${BACKUP_PATH(DB_BACKUP_NAME)}`
+      command = `mongodump -h ${host} -d ${name} -p ${config.mongodb.password} -u ${config.mongodb.username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`
     }
     // When Username is provided
     if (config.mongodb.username && !config.mongodb.password) {
-      command = `mongodump -h ${host} -d ${name} -u ${config.mongodb.username} -o ${BACKUP_PATH(DB_BACKUP_NAME)}`
+      command = `mongodump -h ${host} -d ${name} -u ${config.mongodb.username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`
     }
 
     exec(command, (err, stdout, stderr) => {
@@ -64,36 +70,7 @@ function BackupMongoDatabase(config) {
         // This error is dangerous, So If this happened, Just QUIT!
         reject({error: 1, message: err.message})
       } else {
-        resolve({error: 0, message: "Created Backup Successfully", backupFolderName: DB_BACKUP_NAME})
-      }
-    })
-  })
-}
-
-function CreateZIP(DB_FOLDER_NAME) {
-  return new Promise((resolve, reject) => {
-    zipFolder(BACKUP_PATH(DB_FOLDER_NAME), BACKUP_PATH(DB_FOLDER_NAME + ".zip"), err => {
-      if (err) {
-        reject({error: 1, message: e})
-      } else {
-        resolve({
-          error: 0,
-          message: "Successfully Zipped Database Backup",
-          zipName: DB_FOLDER_NAME + ".zip",
-          folderName: DB_FOLDER_NAME
-        });
-      }
-    });
-  });
-}
-
-function DeleteBackupFolder(DB_FOLDER_NAME) {
-  return new Promise((resolve, reject) => {
-    rimraf(BACKUP_PATH(DB_FOLDER_NAME), (err) => {
-      if (err) {  
-        reject({error: 1, message: err.message})
-      } else {
-        resolve({error: 0, message: `Deleted ${DB_FOLDER_NAME}`, folderName: DB_FOLDER_NAME})
+        resolve({error: 0, message: "Successfully Created Backup", backupName: DB_BACKUP_NAME})
       }
     })
   })
@@ -150,19 +127,17 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
 
     S3.upload(uploadParams, (err, data) => {
       if (err) {
-        reject({error: 1, message: err.message, code: err.code})
+        return reject({error: 1, message: err.message, code: err.code})
       }
 
-      if (data) {
-        if (!config.keepLocalBackups) {
-          DeleteLocalBackup(ZIP_NAME).then(deleteLocalBackupResult => {
-            resolve({error: 0, message: "Upload Successful, Deleted Local Copy of Backup", data: data});
-          }, deleteLocalBackupError => {
-            resolve({error: 1, message: deleteLocalBackupError, data: data})
-          });
-        } else {
-          resolve({error: 0, message: "Upload Successful", data: data});
-        }
+      if (!config.keepLocalBackups) {
+        DeleteLocalBackup(ZIP_NAME).then(deleteLocalBackupResult => {
+          resolve({error: 0, message: "Upload Successfull, Deleted Local Copy of Backup", data: data});
+        }, deleteLocalBackupError => {
+          resolve({error: 1, message: deleteLocalBackupError, data: data})
+        });
+      } else {
+        resolve({error: 0, message: "Upload Successfull", data: data});
       }
     });
   });
@@ -175,6 +150,7 @@ function UploadBackup(config, backupResult) {
     return Promise.resolve(uploadFileResult)
   }, uploadFileError => {
     if (uploadFileError.code === "NoSuchBucket") {
+      // Bucket Does not exists, So Create one, And Reattempt to Upload
       return CreateBucket(s3, config).then((createBucketResolved => {
         return UploadFileToS3(s3, backupResult.zipName, config).then(uploadFileResult => {
           return Promise.resolve(uploadFileResult)
@@ -193,21 +169,8 @@ function UploadBackup(config, backupResult) {
 function CreateBackup(config) {
   // Backup Mongo Database
   return BackupMongoDatabase(config).then(result => {
-    // Create a zip
-    return CreateZIP(result.backupFolderName).then(successResult => {
-      // Delete the folder in which database was stored, because we only need zip
-      return DeleteBackupFolder(successResult.folderName).then(backupFolderResult => {
-        return Promise.resolve({
-          error: 0,
-          message: "Successfully Zipped Database Backup",
-          zipName: backupFolderResult.folderName + ".zip"
-        });
-      }, error => {
-        return Promise.reject(error)
-      })
-    }, error => {
-      return Promise.reject(error)
-    })
+
+    return Promise.resolve({error: 0, message: "Successfully Created Compressed Archive of Database", zipName: result.backupName});
   }, error => {
     return Promise.reject(error)
   })
