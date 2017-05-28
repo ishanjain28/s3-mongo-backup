@@ -18,7 +18,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
     var backupConfig = {
        mongodb: {
        host: "localhost", //Database host
-       name: ""           //Database name
+       name: "",           //Database name
        // Optional Values 
        username: "",      //Username to use to connect to database
        password: ""       //Password to use to connect to database

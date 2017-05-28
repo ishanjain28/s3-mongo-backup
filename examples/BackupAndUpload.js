@@ -1,4 +1,9 @@
-const backup = require("s3-mongo-backup")
+
+// Usually, It'll be
+// const backup = require('s3-mongo-backup')
+// when you installed the package using yarn or npm
+// but in example here, I used backup.js directly.
+const backup = require("../backup.js")
 
 var backupConfig = {
   mongodb: {
