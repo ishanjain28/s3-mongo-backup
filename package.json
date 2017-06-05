@@ -1,6 +1,6 @@
 {
   "name": "s3-mongo-backup",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "Backup and Upload MongoDB Databases to S3",
   "main": "backup.js",
   "scripts": {
