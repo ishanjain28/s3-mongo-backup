@@ -20,6 +20,7 @@ var backupConfig = {
         bucketName: "" //Bucket Name
     },
     keepLocalBackups: false, //If true, It'll create a folder with database's name and store backups in it and if it's false, It'll use temporary directory of OS.
+    noOfLocalBackups: 2, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
     timezoneOffset: 300 //Timezone, Used in naming backups, It is assumed to be in hours if less than 16 and in minutes otherwise
 };
 

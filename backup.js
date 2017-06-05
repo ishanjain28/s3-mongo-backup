@@ -15,11 +15,9 @@ function ValidateConfig(config) {
 
         if (config.keepLocalBackups) {
             fs.mkdir(path.resolve(__dirname, config.mongodb.name), err => {
-
                 if (err) {
                     // Do nothing
                 }
-
             });
             BACKUP_PATH = (ZIP_NAME) => path.resolve(__dirname, config.mongodb.name, ZIP_NAME);
         }
@@ -89,7 +87,7 @@ function BackupMongoDatabase(config) {
 
         exec(command, (err, stdout, stderr) => {
             if (err) {
-                // This error is dangerous, So If this happened, Just QUIT!
+                // Most likely, mongodump isn't installed or isn't accessible
                 reject({
                     error: 1,
                     message: err.message
@@ -97,7 +95,7 @@ function BackupMongoDatabase(config) {
             } else {
                 resolve({
                     error: 0,
-                    message: "Successfully Created Backup",
+                    message: "Successfuly Created Backup",
                     backupName: DB_BACKUP_NAME
                 });
             }
@@ -183,10 +181,11 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
             }
 
             if (!config.keepLocalBackups) {
+                //  Not supposed to keep local backups, so delete the one that was just uploaded
                 DeleteLocalBackup(ZIP_NAME).then(deleteLocalBackupResult => {
                     resolve({
                         error: 0,
-                        message: "Upload Successfull, Deleted Local Copy of Backup",
+                        message: "Upload Successful, Deleted Local Copy of Backup",
                         data: data
                     });
                 }, deleteLocalBackupError => {
@@ -197,9 +196,30 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
                     });
                 });
             } else {
+                // Only keep most recent "noOfLocalBackups" number of backups and delete older backups
+
+                if (config.noOfLocalBackups) {
+                    let oldBackupNames =
+                        fs
+                        .readdirSync(BACKUP_PATH(""))
+                        .filter(dirItem => fs.lstatSync(BACKUP_PATH(dirItem)).isFile())
+                        .slice(config.noOfLocalBackups);
+
+                    // All the errors that occcurred in deleting old backups are stored in this
+                    // let errorInDeletingList = [];
+
+                    oldBackupNames.forEach(fileName => {
+                        fs.unlink(BACKUP_PATH(fileName), err => {
+                            if (err) {
+                                // Do nothing
+                            }
+                        });
+                    });
+                }
+
                 resolve({
                     error: 0,
-                    message: "Upload Successfull",
+                    message: "Upload Successful",
                     data: data
                 });
             }
@@ -215,7 +235,7 @@ function UploadBackup(config, backupResult) {
     }, uploadFileError => {
         if (uploadFileError.code === "NoSuchBucket") {
             // Bucket Does not exists, So Create one, And Reattempt to Upload
-            return CreateBucket(s3, config).then((createBucketResolved => {
+            return CreateBucket(s3, config).then(createBucketResolved => {
                 return UploadFileToS3(s3, backupResult.zipName, config).then(uploadFileResult => {
                     return Promise.resolve(uploadFileResult);
                 }, uploadFileError => {
@@ -223,7 +243,7 @@ function UploadBackup(config, backupResult) {
                 });
             }, createBucketError => {
                 return Promise.reject(createBucketError);
-            }));
+            });
         } else {
             return Promise.reject(uploadFileError);
         }

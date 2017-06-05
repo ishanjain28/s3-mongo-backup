@@ -30,7 +30,8 @@ This Module Helps in automating mongodb database Backups and uploading them to A
        accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
        bucketName: "" //Bucket Name
     },
-    keepLocalBackups: false, //If true, It will not delete local copy of backup
+    keepLocalBackups: false,  //If true, It'll create a folder with database's name and store backups in it and if it's false, It'll use temporary directory of OS
+    noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
     timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
     }
 
