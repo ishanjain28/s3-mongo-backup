@@ -13,7 +13,6 @@ let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
 function ValidateConfig(config) {
     if (config && config.mongodb && config.mongodb.host && config.mongodb.name && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.bucketName) {
 
-
         if (config.keepLocalBackups) {
             fs.mkdir(path.resolve(PROJECT_ROOT, config.mongodb.name), err => {
                 if (err) {
@@ -204,6 +203,7 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
                         fs
                         .readdirSync(BACKUP_PATH(""))
                         .filter(dirItem => fs.lstatSync(BACKUP_PATH(dirItem)).isFile())
+                        .reverse()
                         .slice(config.noOfLocalBackups);
 
                     // All the errors that occcurred in deleting old backups are stored in this
