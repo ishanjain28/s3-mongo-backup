@@ -3,7 +3,8 @@ const path = require('path'),
     exec = require('child_process').exec,
     moment = require('moment'),
     AWS = require('aws-sdk'),
-    os = require('os');
+    os = require('os'),
+    PROJECT_ROOT = process.mainModule.paths[0].split("node_modules")[0];
 
 let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
 
@@ -14,12 +15,12 @@ function ValidateConfig(config) {
 
 
         if (config.keepLocalBackups) {
-            fs.mkdir(path.resolve(__dirname, config.mongodb.name), err => {
+            fs.mkdir(path.resolve(PROJECT_ROOT, config.mongodb.name), err => {
                 if (err) {
                     // Do nothing
                 }
             });
-            BACKUP_PATH = (ZIP_NAME) => path.resolve(__dirname, config.mongodb.name, ZIP_NAME);
+            BACKUP_PATH = (ZIP_NAME) => path.resolve(PROJECT_ROOT, config.mongodb.name, ZIP_NAME);
         }
         return true;
     }
