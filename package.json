@@ -29,5 +29,8 @@
   "dependencies": {
     "aws-sdk": "^2.39.0",
     "moment": "^2.18.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.19.0"
   }
 }
