@@ -16,13 +16,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
 ## Create a configuration Object
 
     var backupConfig = {
-       mongodb: {
-       host: "localhost", //Database host
-       name: "",           //Database name
-       // Optional Values 
-       username: "",      //Username to use to connect to database
-       password: ""       //Password to use to connect to database
-    },
+       mongodb: "mongodb://localhost:27017", // MongoDB Connection URI 
     s3: {
        accessKey: "",  //AccessKey
        secretKey: "",  //SecretKey
@@ -63,7 +57,15 @@ To see how to provide Timezone offset, Please refer to [moment#utcOffset](http:/
 
 MIT
 
+# Changelog
+
+    2.0.0 -> Uses MongoDB Connection URI directly, instead of asking for individual values of username, database name, password and database host.
+
 
 ## NOTE
 
-##### Please note that, This module uses `mongodump` to create backup of database, You need to have it installed on the machine on which you are using this module. 
+1. This module uses `mongodump` to create backup of database, You need to have it installed on the machine on which you are using this module. 
+2. To restore the generated backups
+
+    mongorestore --host localhost --port=27017 --gzip --archive=\<path to backup.gz\>
+
