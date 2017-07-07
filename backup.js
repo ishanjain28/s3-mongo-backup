@@ -1,26 +1,33 @@
 const path = require('path'),
     fs = require('fs'),
     exec = require('child_process').exec,
+    os = require('os'),
     moment = require('moment'),
     AWS = require('aws-sdk'),
-    os = require('os'),
-    PROJECT_ROOT = process.mainModule.paths[0].split("node_modules")[0];
+    MongodbURI = require('mongodb-uri'),
+    PROJECT_ROOT = process
+        .mainModule
+        .paths[0]
+        .split("node_modules")[0];
 
 let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
 
 // Checks provided Configuration, Rejects if important keys from config are
 // missing
 function ValidateConfig(config) {
-    if (config && config.mongodb && config.mongodb.host && config.mongodb.name && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.bucketName) {
-
+    if (config && config.mongodb && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.bucketName) {
+        let mongodb = MongodbURI.parse(config.mongodb);
         if (config.keepLocalBackups) {
-            fs.mkdir(path.resolve(PROJECT_ROOT, config.mongodb.name), err => {
+            fs.mkdir(path.resolve(PROJECT_ROOT, mongodb.database), err => {
                 if (err) {
                     // Do nothing
                 }
             });
-            BACKUP_PATH = (ZIP_NAME) => path.resolve(PROJECT_ROOT, config.mongodb.name, ZIP_NAME);
+            BACKUP_PATH = (ZIP_NAME) => path.resolve(PROJECT_ROOT, mongodb.database, ZIP_NAME);
         }
+
+        // Replace Connection URI with parsed output from mongodb-uri
+        config.mongodb = mongodb;
         return true;
     }
     return false;
@@ -30,11 +37,7 @@ function AWSSetup(config) {
 
     AWS
         .config
-        .update({
-            accessKeyId: config.s3.accessKey,
-            secretAccessKey: config.s3.secretKey,
-            region: config.s3.region
-        });
+        .update({accessKeyId: config.s3.accessKey, secretAccessKey: config.s3.secretKey, region: config.s3.region});
 
     let s3 = new AWS.S3();
 
@@ -64,40 +67,30 @@ function BackupMongoDatabase(config) {
 
     return new Promise((resolve, reject) => {
 
-        const {
-            host,
-            name
-        } = config.mongodb;
-        const {
-            timezoneOffset
-        } = config;
-        let DB_BACKUP_NAME = `${name}_${currentTime(timezoneOffset)}.gz`;
+        const {database, password, username} = config.mongodb, {timezoneOffset} = config,
+            host = config.mongodb.hosts[0].host,
+            port = config.mongodb.hosts[0].port;
+
+        let DB_BACKUP_NAME = `${database}_${currentTime(timezoneOffset)}.gz`;
 
         // Default command, does not considers username or password
-        let command = `mongodump -h ${host} -d ${name} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+        let command = `mongodump -h ${host} --port=${port} -d ${database} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
 
         // When Username and password is provided
-        if (config.mongodb.username && config.mongodb.password) {
-            command = `mongodump -h ${host} -d ${name} -p ${config.mongodb.password} -u ${config.mongodb.username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+        if (username && password) {
+            command = `mongodump -h ${host} --port=${port} -d ${database} -p ${password} -u ${username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
         }
         // When Username is provided
-        if (config.mongodb.username && !config.mongodb.password) {
-            command = `mongodump -h ${host} -d ${name} -u ${config.mongodb.username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+        if (username && !password) {
+            command = `mongodump -h ${host} --port=${port} -d ${database} -u ${username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
         }
 
         exec(command, (err, stdout, stderr) => {
             if (err) {
                 // Most likely, mongodump isn't installed or isn't accessible
-                reject({
-                    error: 1,
-                    message: err.message
-                });
+                reject({error: 1, message: err.message});
             } else {
-                resolve({
-                    error: 0,
-                    message: "Successfuly Created Backup",
-                    backupName: DB_BACKUP_NAME
-                });
+                resolve({error: 0, message: "Successfuly Created Backup", backupName: DB_BACKUP_NAME});
             }
         });
     });
@@ -110,11 +103,7 @@ function DeleteLocalBackup(ZIP_NAME) {
             if (err) {
                 reject(err);
             } else {
-                resolve({
-                    error: 0,
-                    message: "Deleted Local backup",
-                    zipName: ZIP_NAME
-                });
+                resolve({error: 0, message: "Deleted Local backup", zipName: ZIP_NAME});
             }
         });
     });
@@ -123,11 +112,7 @@ function DeleteLocalBackup(ZIP_NAME) {
 // S3 Utils Used to check if provided bucket exists If it does not exists then
 // it can create one, and then use it.  Also used to upload File
 function CreateBucket(S3, config) {
-    const {
-        bucketName,
-        accessPerm,
-        region
-    } = config.s3;
+    const {bucketName, accessPerm, region} = config.s3;
 
     return new Promise((resolve, reject) => {
         S3.createBucket({
@@ -138,17 +123,9 @@ function CreateBucket(S3, config) {
             }
         }, (err, data) => {
             if (err) {
-                reject({
-                    error: 1,
-                    message: err.message,
-                    code: err.code
-                });
+                reject({error: 1, message: err.message, code: err.code});
             } else {
-                resolve({
-                    error: 0,
-                    url: data.Location,
-                    message: 'Sucessfully created Bucket'
-                });
+                resolve({error: 0, url: data.Location, message: 'Sucessfully created Bucket'});
             }
         });
     });
@@ -159,10 +136,7 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
         let fileStream = fs.createReadStream(BACKUP_PATH(ZIP_NAME));
 
         fileStream.on('error', err => {
-            return reject({
-                error: 1,
-                message: err.message
-            });
+            return reject({error: 1, message: err.message});
         });
 
         let uploadParams = {
@@ -173,41 +147,26 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
 
         S3.upload(uploadParams, (err, data) => {
             if (err) {
-                return reject({
-                    error: 1,
-                    message: err.message,
-                    code: err.code
-                });
+                return reject({error: 1, message: err.message, code: err.code});
             }
 
             if (!config.keepLocalBackups) {
                 //  Not supposed to keep local backups, so delete the one that was just uploaded
                 DeleteLocalBackup(ZIP_NAME).then(deleteLocalBackupResult => {
-                    resolve({
-                        error: 0,
-                        message: "Upload Successful, Deleted Local Copy of Backup",
-                        data: data
-                    });
+                    resolve({error: 0, message: "Upload Successful, Deleted Local Copy of Backup", data: data});
                 }, deleteLocalBackupError => {
-                    resolve({
-                        error: 1,
-                        message: deleteLocalBackupError,
-                        data: data
-                    });
+                    resolve({error: 1, message: deleteLocalBackupError, data: data});
                 });
             } else {
-                // Only keep most recent "noOfLocalBackups" number of backups and delete older backups
+                // Only keep most recent "noOfLocalBackups" number of backups and delete older
+                // backups
 
                 if (config.noOfLocalBackups) {
-                    let oldBackupNames =
-                        fs
+                    let oldBackupNames = fs
                         .readdirSync(BACKUP_PATH(""))
                         .filter(dirItem => fs.lstatSync(BACKUP_PATH(dirItem)).isFile())
                         .reverse()
                         .slice(config.noOfLocalBackups);
-
-                    // All the errors that occcurred in deleting old backups are stored in this
-                    // let errorInDeletingList = [];
 
                     oldBackupNames.forEach(fileName => {
                         fs.unlink(BACKUP_PATH(fileName), err => {
@@ -218,11 +177,7 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
                     });
                 }
 
-                resolve({
-                    error: 0,
-                    message: "Upload Successful",
-                    data: data
-                });
+                resolve({error: 0, message: "Upload Successful", data: data});
             }
         });
     });
@@ -254,12 +209,7 @@ function UploadBackup(config, backupResult) {
 function CreateBackup(config) {
     // Backup Mongo Database
     return BackupMongoDatabase(config).then(result => {
-
-        return Promise.resolve({
-            error: 0,
-            message: "Successfully Created Compressed Archive of Database",
-            zipName: result.backupName
-        });
+        return Promise.resolve({error: 0, message: "Successfully Created Compressed Archive of Database", zipName: result.backupName});
     }, error => {
         return Promise.reject(error);
     });
@@ -282,10 +232,7 @@ function BackupAndUpload(config) {
             return Promise.reject(backupResult);
         });
     } else {
-        return Promise.reject({
-            error: 1,
-            message: "Invalid Configuration"
-        });
+        return Promise.reject({error: 1, message: "Invalid Configuration"});
     }
 }
 

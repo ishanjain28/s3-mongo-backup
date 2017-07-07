@@ -5,13 +5,7 @@
 const backup = require("../backup.js");
 
 var backupConfig = {
-    mongodb: {
-        host: "localhost", //Database host
-        name: "" //Database name
-        // Optional Values
-        // username: "", //Username to use to connect to database
-        // password: "" //Password to use to connect to database
-    },
+    mongodb: "mongodb://localhost:27017/freecodecamp", //MongoDB Connection URI
     s3: {
         accessKey: "", //AccessKey
         secretKey: "", //SecretKey

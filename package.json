@@ -27,8 +27,9 @@
   },
   "homepage": "https://github.com/ishanjain28/s3-mongo-backup#readme",
   "dependencies": {
-    "aws-sdk": "^2.39.0",
-    "moment": "^2.18.1"
+    "aws-sdk": "^2.82.0",
+    "moment": "^2.18.1",
+    "mongodb-uri": "^0.9.7"
   },
   "devDependencies": {
     "eslint": "^3.19.0"
