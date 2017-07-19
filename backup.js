@@ -1,3 +1,5 @@
+'use strict';
+
 const path = require('path'),
     fs = require('fs'),
     exec = require('child_process').exec,
@@ -67,9 +69,12 @@ function BackupMongoDatabase(config) {
 
     return new Promise((resolve, reject) => {
 
-        const {database, password, username} = config.mongodb, {timezoneOffset} = config,
-            host = config.mongodb.hosts[0].host,
-            port = config.mongodb.hosts[0].port;
+        const database = config.mongodb.database,
+            password = config.mongodb.password || null,
+            username = config.mongodb.username || null,
+            timezoneOffset = config.timezoneOffset || null,
+            host = config.mongodb.hosts[0].host || null,
+            port = config.mongodb.hosts[0].port || null;
 
         let DB_BACKUP_NAME = `${database}_${currentTime(timezoneOffset)}.gz`;
 
@@ -112,7 +117,10 @@ function DeleteLocalBackup(ZIP_NAME) {
 // S3 Utils Used to check if provided bucket exists If it does not exists then
 // it can create one, and then use it.  Also used to upload File
 function CreateBucket(S3, config) {
-    const {bucketName, accessPerm, region} = config.s3;
+
+    const bucketName = config.s3.bucketName,
+        accessPerm = config.s3.accessPerm,
+        region = config.s3.region;
 
     return new Promise((resolve, reject) => {
         S3.createBucket({
