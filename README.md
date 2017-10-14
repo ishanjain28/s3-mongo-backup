@@ -16,18 +16,42 @@ This Module Helps in automating mongodb database Backups and uploading them to A
 ## Create a configuration Object
 
     var backupConfig = {
-       mongodb: "mongodb://localhost:27017", // MongoDB Connection URI 
-    s3: {
-       accessKey: "",  //AccessKey
-       secretKey: "",  //SecretKey
-       region: "",     //S3 Bucket Region
-       accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
-       bucketName: "" //Bucket Name
-    },
-    keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
-    noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
-    timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+       mongodb: "mongodb://username:password@localhost:27017", // MongoDB Connection URI 
+        s3: {
+            accessKey: "",  //AccessKey
+            secretKey: "",  //SecretKey
+            region: "",     //S3 Bucket Region
+            accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
+            bucketName: "" //Bucket Name
+        },
+        keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
+        noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
+        timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
     }
+
+    Or 
+
+    var backupConfig = {
+        mongodb: {
+            "database": "freecodecamp",
+            "host": "localhost",
+            "username": "admin",
+            "password": "password",
+            "port": 27017
+        },   
+        s3: {
+            accessKey: "",  //AccessKey
+            secretKey: "",  //SecretKey
+            region: "",     //S3 Bucket Region
+            accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
+            bucketName: "" //Bucket Name
+        },
+        keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
+        noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
+        timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+    }
+
+
 
 ### Call the Function and provide Configuration Object to it. 
 
