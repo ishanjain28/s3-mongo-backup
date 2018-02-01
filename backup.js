@@ -101,15 +101,15 @@ function BackupMongoDatabase(config) {
         let DB_BACKUP_NAME = `${database}_${currentTime(timezoneOffset)}.gz`;
 
         // Default command, does not considers username or password
-        let command = `mongodump -h ${host} --port=${port} -d ${database} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+        let command = `mongodump -h ${host} --port=${port} -d ${database} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
 
         // When Username and password is provided
         if (username && password) {
-            command = `mongodump -h ${host} --port=${port} -d ${database} -p ${password} -u ${username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+            command = `mongodump -h ${host} --port=${port} -d ${database} -p ${password} -u ${username} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
         }
         // When Username is provided
         if (username && !password) {
-            command = `mongodump -h ${host} --port=${port} -d ${database} -u ${username} --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+            command = `mongodump -h ${host} --port=${port} -d ${database} -u ${username} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
         }
 
         exec(command, (err, stdout, stderr) => {
