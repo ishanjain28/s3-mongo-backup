@@ -193,7 +193,7 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
 
         let uploadParams = {
             Bucket: config.s3.bucketName,
-            Key: ZIP_NAME,
+            Key: `mongoDbBackups/${ZIP_NAME}`,
             Body: fileStream
         };
 
