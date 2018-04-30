@@ -4,7 +4,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
 # Features
 
 - Supports Promises
-- Uploads Backups to S3
+- Uploads Backups to S3 in "mongoDbBackups" folder
 - Uses GZip Compression to reduce Backup Size
 
 # Usage
@@ -61,7 +61,7 @@ This Module Helps in automating mongodb database Backups and uploading them to A
         onResolve => {
         // When everything was successful
           console.log(onResolve);
-    }
+    },
         onReject => {
         // When Anything goes wrong!
           console.log(onReject);
