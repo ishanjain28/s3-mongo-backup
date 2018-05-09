@@ -29,6 +29,8 @@ function ValidateConfig(config) {
                     username: config.mongodb.username || null,
                     password: config.mongodb.password || null,
                     database: config.mongodb.database,
+                    ssl: config.mongodb.ssl,
+                    authenticationDatabase: config.mongodb.authenticationDatabase,
                     hosts: [{
                         host: config.mongodb.host,
                         port: config.mongodb.port
