@@ -96,7 +96,9 @@ function BackupMongoDatabase(config) {
             username = config.mongodb.username || null,
             timezoneOffset = config.timezoneOffset || null,
             host = config.mongodb.hosts[0].host || null,
-            port = config.mongodb.hosts[0].port || null;
+            port = config.mongodb.hosts[0].port || null,
+            ssl = config.mongodb.ssl || null,
+            authenticationDatabase = config.mongodb.authenticationDatabase || null;
 
         let DB_BACKUP_NAME = `${database}_${currentTime(timezoneOffset)}.gz`;
 
@@ -111,6 +113,9 @@ function BackupMongoDatabase(config) {
         if (username && !password) {
             command = `mongodump -h ${host} --port=${port} -d ${database} -u ${username} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
         }
+
+        if (ssl) command += ` --ssl`;
+        if (authenticationDatabase) command += ` --authenticationDatabase=${authenticationDatabase}`;
 
         exec(command, (err, stdout, stderr) => {
             if (err) {
