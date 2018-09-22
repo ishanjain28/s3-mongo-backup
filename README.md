@@ -11,61 +11,67 @@ This Module Helps in automating mongodb database Backups and uploading them to A
 
 ## Import 
 
-    const MBackup = require('s3-mongo-backup');
+```javascript
+const MBackup = require('s3-mongo-backup');
+```
 
 ## Create a configuration Object
 
-    var backupConfig = {
-       mongodb: "mongodb://username:password@localhost:27017", // MongoDB Connection URI 
-        s3: {
-            accessKey: "",  //AccessKey
-            secretKey: "",  //SecretKey
-            region: "",     //S3 Bucket Region
-            accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
-            bucketName: "" //Bucket Name
-        },
-        keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
-        noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
-        timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
-    }
+```javascript
+var backupConfig = {
+    mongodb: "mongodb://username:password@localhost:27017", // MongoDB Connection URI 
+    s3: {
+        accessKey: "",  //AccessKey
+        secretKey: "",  //SecretKey
+        region: "",     //S3 Bucket Region
+        accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
+        bucketName: "" //Bucket Name
+    },
+    keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
+    noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
+    timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+}
+```
 
-    Or 
+### Or 
 
-    var backupConfig = {
-        mongodb: {
-            "database": "freecodecamp",
-            "host": "localhost",
-            "username": "admin",
-            "password": "password",
-            "port": 27017
-        },   
-        s3: {
-            accessKey: "",  //AccessKey
-            secretKey: "",  //SecretKey
-            region: "",     //S3 Bucket Region
-            accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
-            bucketName: "" //Bucket Name
-        },
-        keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
-        noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
-        timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
-    }
-
+```javascript
+var backupConfig = {
+    mongodb: {
+        "database": "freecodecamp",
+        "host": "localhost",
+        "username": "admin",
+        "password": "password",
+        "port": 27017
+    },   
+    s3: {
+        accessKey: "",  //AccessKey
+        secretKey: "",  //SecretKey
+        region: "",     //S3 Bucket Region
+        accessPerm: "private", //S3 Bucket Privacy, Since, You'll be storing Database, Private is HIGHLY Recommended
+        bucketName: "" //Bucket Name
+    },
+    keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
+    noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
+    timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+}
+```
 
 
 ### Call the Function and provide Configuration Object to it. 
 
-
-    MBackup(backupConfig)
-      .then(
-        onResolve => {
-        // When everything was successful
-          console.log(onResolve);
-    },
-        onReject => {
-        // When Anything goes wrong!
-          console.log(onReject);
-    });
+```javascript
+MBackup(backupConfig)
+    .then(
+    onResolve => {
+    // When everything was successful
+        console.log(onResolve);
+},
+    onReject => {
+    // When Anything goes wrong!
+        console.log(onReject);
+});
+```
 
 > See examples directory for more examples
 
@@ -91,5 +97,6 @@ MIT
 1. This module uses `mongodump` to create backup of database, You need to have it installed on the machine on which you are using this module. 
 2. To restore the generated backups
 
-    mongorestore --host localhost --port=27017 --gzip --archive=\<path to backup.gz\>
-
+```bash
+mongorestore --host localhost --port=27017 --gzip --archive=\<path to backup.gz\>
+```
