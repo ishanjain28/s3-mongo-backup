@@ -17,7 +17,7 @@ let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
 // Checks provided Configuration, Rejects if important keys from config are
 // missing
 function ValidateConfig(config) {
-    if (config && config.mongodb && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.bucketName) {
+    if (config && config.mongodb && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.bucketName) {
         let mongodb;
         if (typeof config.mongodb == "string") {
             mongodb = MongodbURI.parse(config.mongodb);
@@ -56,7 +56,10 @@ function ValidateConfig(config) {
 }
 
 function AWSSetup(config) {
-
+    
+    if(config.s3.region){
+        
+    // If user defined a region
     AWS
         .config
         .update({
@@ -64,8 +67,24 @@ function AWSSetup(config) {
             secretAccessKey: config.s3.secretKey,
             region: config.s3.region
         });
+        
+        return new AWS.S3();
+        
+    }else{
+        
+     //Defaults to us-east-1. Throws error if explictly defines "us-east-1"
+     AWS
+        .config
+        .update({
+            accessKeyId: config.s3.accessKey,
+            secretAccessKey: config.s3.secretKey
+        });
+        
+        return new AWS.S3();
+        
+    }
 
-    return new AWS.S3();
+
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
