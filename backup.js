@@ -179,30 +179,57 @@ function CreateBucket(S3, config) {
 
     const bucketName = config.s3.bucketName,
         accessPerm = config.s3.accessPerm,
-        region = config.s3.region;
+        region = config.s3.region || null;
 
     return new Promise((resolve, reject) => {
-        S3.createBucket({
-            Bucket: bucketName,
-            ACL: accessPerm || "private",
-            CreateBucketConfiguration: {
-                LocationConstraint: region
-            }
-        }, (err, data) => {
-            if (err) {
-                reject({
-                    error: 1,
-                    message: err.message,
-                    code: err.code
-                });
-            } else {
-                resolve({
-                    error: 0,
-                    url: data.Location,
-                    message: 'Sucessfully created Bucket'
-                });
-            }
-        });
+        
+        if(region){
+
+            S3.createBucket({
+                Bucket: bucketName,
+                ACL: accessPerm || "private",
+                CreateBucketConfiguration: {
+                    LocationConstraint: region
+                }
+            }, (err, data) => {
+                if (err) {
+                    reject({
+                        error: 1,
+                        message: err.message,
+                        code: err.code
+                    });
+                } else {
+                    resolve({
+                        error: 0,
+                        url: data.Location,
+                        message: 'Sucessfully created Bucket'
+                    });
+                }
+            });
+        
+        }else{
+            
+            S3.createBucket({
+                Bucket: bucketName,
+                ACL: accessPerm || "private"
+            }, (err, data) => {
+                if (err) {
+                    reject({
+                        error: 1,
+                        message: err.message,
+                        code: err.code
+                    });
+                } else {
+                    resolve({
+                        error: 0,
+                        url: data.Location,
+                        message: 'Sucessfully created Bucket'
+                    });
+                }
+            });
+            
+        }
+        
     });
 }
 
