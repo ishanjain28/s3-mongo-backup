@@ -17,7 +17,7 @@ let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
 // Checks provided Configuration, Rejects if important keys from config are
 // missing
 function ValidateConfig(config) {
-    if (config && config.mongodb && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.region && config.s3.bucketName) {
+    if (config && config.mongodb && config.s3 && config.s3.accessKey && config.s3.secretKey && config.s3.bucketName) {
         let mongodb;
         if (typeof config.mongodb == "string") {
             mongodb = MongodbURI.parse(config.mongodb);
@@ -56,7 +56,10 @@ function ValidateConfig(config) {
 }
 
 function AWSSetup(config) {
-
+    
+    if(config.s3.region){
+        
+    // If user defined a region
     AWS
         .config
         .update({
@@ -64,8 +67,24 @@ function AWSSetup(config) {
             secretAccessKey: config.s3.secretKey,
             region: config.s3.region
         });
+        
+        return new AWS.S3();
+        
+    }else{
+        
+     //Defaults to us-east-1. Throws error if explictly defines "us-east-1"
+     AWS
+        .config
+        .update({
+            accessKeyId: config.s3.accessKey,
+            secretAccessKey: config.s3.secretKey
+        });
+        
+        return new AWS.S3();
+        
+    }
 
-    return new AWS.S3();
+
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
@@ -96,7 +115,8 @@ function BackupMongoDatabase(config) {
             username = config.mongodb.username || null,
             timezoneOffset = config.timezoneOffset || null,
             host = config.mongodb.hosts[0].host || null,
-            port = config.mongodb.hosts[0].port || null;
+            port = config.mongodb.hosts[0].port || null,
+            authentication = config.mongodb.options.authSource || null;
 
         let DB_BACKUP_NAME = `${database}_${currentTime(timezoneOffset)}.gz`;
 
@@ -111,6 +131,12 @@ function BackupMongoDatabase(config) {
         if (username && !password) {
             command = `mongodump -h ${host} --port=${port} -d ${database} -u ${username} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
         }
+        
+        // When Username and password and authentication db are provided
+        if(username && password && authentication){
+             command = `mongodump -h ${host} --port=${port} -d ${database} -p ${password} -u ${username} --authenticationDatabase ${authentication} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+        }
+            
 
         exec(command, (err, stdout, stderr) => {
             if (err) {
@@ -153,30 +179,57 @@ function CreateBucket(S3, config) {
 
     const bucketName = config.s3.bucketName,
         accessPerm = config.s3.accessPerm,
-        region = config.s3.region;
+        region = config.s3.region || null;
 
     return new Promise((resolve, reject) => {
-        S3.createBucket({
-            Bucket: bucketName,
-            ACL: accessPerm || "private",
-            CreateBucketConfiguration: {
-                LocationConstraint: region
-            }
-        }, (err, data) => {
-            if (err) {
-                reject({
-                    error: 1,
-                    message: err.message,
-                    code: err.code
-                });
-            } else {
-                resolve({
-                    error: 0,
-                    url: data.Location,
-                    message: 'Sucessfully created Bucket'
-                });
-            }
-        });
+        
+        if(region){
+
+            S3.createBucket({
+                Bucket: bucketName,
+                ACL: accessPerm || "private",
+                CreateBucketConfiguration: {
+                    LocationConstraint: region
+                }
+            }, (err, data) => {
+                if (err) {
+                    reject({
+                        error: 1,
+                        message: err.message,
+                        code: err.code
+                    });
+                } else {
+                    resolve({
+                        error: 0,
+                        url: data.Location,
+                        message: 'Sucessfully created Bucket'
+                    });
+                }
+            });
+        
+        }else{
+            
+            S3.createBucket({
+                Bucket: bucketName,
+                ACL: accessPerm || "private"
+            }, (err, data) => {
+                if (err) {
+                    reject({
+                        error: 1,
+                        message: err.message,
+                        code: err.code
+                    });
+                } else {
+                    resolve({
+                        error: 0,
+                        url: data.Location,
+                        message: 'Sucessfully created Bucket'
+                    });
+                }
+            });
+            
+        }
+        
     });
 }
 
