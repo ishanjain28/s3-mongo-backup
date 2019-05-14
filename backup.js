@@ -58,16 +58,11 @@ function ValidateConfig(config) {
 }
 
 function AWSSetup(config) {
-
-    AWS
-        .config
-        .update({
-            accessKeyId: config.s3.accessKey,
-            secretAccessKey: config.s3.secretKey,
-            region: config.s3.region
-        });
-
-    return new AWS.S3();
+    return new AWS.S3({
+        accessKeyId: config.s3.accessKey,
+        secretAccessKey: config.s3.secretKey,
+        region: config.s3.region
+    });
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
