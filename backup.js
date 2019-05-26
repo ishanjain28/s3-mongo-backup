@@ -295,14 +295,16 @@ function CreateBackup(config) {
 }
 
 function BackupAndUpload(config) {
+    // Clone the object so you dont mutate the config argument
+    const _config = { ...config };
     // Check if the configuration is valid
-    let isValidConfig = ValidateConfig(config);
+    const isValidConfig = ValidateConfig(_config);
 
     if (isValidConfig) {
         // Create a backup of database
-        return CreateBackup(config).then(backupResult => {
+        return CreateBackup(_config).then(backupResult => {
             // Upload it to S3
-            return UploadBackup(config, backupResult).then(res => {
+            return UploadBackup(_config, backupResult).then(res => {
                 return Promise.resolve(res);
             }, err => {
                 return Promise.reject(err);
