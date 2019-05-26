@@ -296,7 +296,7 @@ function CreateBackup(config) {
 
 function BackupAndUpload(config) {
     // Clone the object so you dont mutate the config argument
-    const _config = { ...config };
+    const _config = JSON.parse(JSON.stringify(config));
     // Check if the configuration is valid
     const isValidConfig = ValidateConfig(_config);
 
