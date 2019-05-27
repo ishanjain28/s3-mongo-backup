@@ -1,6 +1,6 @@
 {
   "name": "s3-mongo-backup",
-  "version": "1.3.3",
+  "version": "2.0.2",
   "description": "Backup and Upload MongoDB Databases to S3",
   "main": "backup.js",
   "scripts": {
@@ -27,7 +27,11 @@
   },
   "homepage": "https://github.com/ishanjain28/s3-mongo-backup#readme",
   "dependencies": {
-    "aws-sdk": "^2.39.0",
-    "moment": "^2.18.1"
+    "aws-sdk": "^2.82.0",
+    "moment": "^2.18.1",
+    "mongodb-uri": "^0.9.7"
+  },
+  "devDependencies": {
+    "eslint": "^3.19.0"
   }
 }
