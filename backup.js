@@ -2,15 +2,15 @@
 
 const path = require('path'),
     fs = require('fs'),
-    exec = require('child_process').exec,
     os = require('os'),
     moment = require('moment'),
-    AWS = require('aws-sdk'),
     MongodbURI = require('mongodb-uri'),
     PROJECT_ROOT = process
     .mainModule
     .paths[0]
     .split("node_modules")[0];
+const { S3Client, CreateBucketCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { spawn } = require('child_process');
 
 let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
 
@@ -51,23 +51,17 @@ function ValidateConfig(config) {
 
         // Replace Connection URI with parsed output from mongodb-uri
         config.mongodb = mongodb;
-        console.log(config.mongodb);
         return true;
     }
     return false;
 }
 
 function AWSSetup(config) {
-
-    AWS
-        .config
-        .update({
-            accessKeyId: config.s3.accessKey,
-            secretAccessKey: config.s3.secretKey,
-            region: config.s3.region
-        });
-
-    return new AWS.S3();
+    return new S3Client({
+        accessKeyId: config.s3.accessKey,
+        secretAccessKey: config.s3.secretKey,
+        region: config.s3.region
+    });
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
@@ -100,40 +94,63 @@ function BackupMongoDatabase(config) {
             host = config.mongodb.hosts[0].host || null,
             port = config.mongodb.hosts[0].port || null,
             ssl = config.mongodb.ssl || null,
-            authenticationDatabase = config.mongodb.authenticationDatabase || null;
+            authenticationDatabase = config.mongodb.authenticationDatabase || null,
+            quiet = config.quiet || false;
+
 
         let DB_BACKUP_NAME = `${database}_${currentTime(timezoneOffset)}.gz`;
 
+        let args=[
+            `--host=${host}`,
+            `--port=${port}`,
+            `--db=${database}`,
+            `--gzip`,
+            `--archive="${BACKUP_PATH(DB_BACKUP_NAME)}"`];
+        if (username && password) args.push(`-p "${password}"`).push(`-u ${username}`);
+        if (username && !password) args.push(`-u ${username}`);
+        if (ssl) args.push(`--ssl`);
+        if (quiet) args.push(`--quiet`);
+        if (authenticationDatabase) args.push(`--authenticationDatabase=${authenticationDatabase}`);
         // Default command, does not considers username or password
-        let command = `mongodump -h ${host} --port=${port} -d ${database} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
+        try {
 
-        // When Username and password is provided
-        if (username && password) {
-            command = `mongodump -h ${host} --port=${port} -d ${database} -p ${password} -u ${username} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
-        }
-        // When Username is provided
-        if (username && !password) {
-            command = `mongodump -h ${host} --port=${port} -d ${database} -u ${username} --quiet --gzip --archive=${BACKUP_PATH(DB_BACKUP_NAME)}`;
-        }
+            const mongoDumpProcess = spawn('mongodump', args);
 
-        if (ssl) command += ` --ssl`;
-        if (authenticationDatabase) command += ` --authenticationDatabase=${authenticationDatabase}`;
 
-        exec(command, (err, stdout, stderr) => {
-            if (err) {
+            mongoDumpProcess.on('error', (err) => {
+                reject(err);
+            });
+
+            mongoDumpProcess.stdout.on('data', (data) => {
+                console.log(`stdout: ${data}`);
+            });
+
+            mongoDumpProcess.stderr.on('data', (data) => {
+                console.log(`stderr: ${data}`);
+            });
+
+            mongoDumpProcess.on('close', (code) => {
+                if (code == 0) {
+                    resolve({
+                        error: 0,
+                        message: "Successfully Created Backup",
+                        backupName: DB_BACKUP_NAME
+                    });
+                } else {
                 // Most likely, mongodump isn't installed or isn't accessible
-                reject({
-                    error: 1,
-                    message: err.message
-                });
-            } else {
-                resolve({
-                    error: 0,
-                    message: "Successfuly Created Backup",
-                    backupName: DB_BACKUP_NAME
-                });
-            }
-        });
+                    reject({
+                        error: 1,
+                        message: `mongodump closed with code ${code}`
+                    });
+                }
+
+            });
+
+        } catch (ex) {
+            reject(ex);
+        }
+
+
     });
 }
 
@@ -163,13 +180,14 @@ function CreateBucket(S3, config) {
         region = config.s3.region;
 
     return new Promise((resolve, reject) => {
-        S3.createBucket({
+        const commandCreate = new CreateBucketCommand({
             Bucket: bucketName,
             ACL: accessPerm || "private",
             CreateBucketConfiguration: {
                 LocationConstraint: region
             }
-        }, (err, data) => {
+        });
+        S3.send(commandCreate, (err, data) => {
             if (err) {
                 reject({
                     error: 1,
@@ -203,8 +221,8 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
             Key: `mongoDbBackups/${ZIP_NAME}`,
             Body: fileStream
         };
-
-        S3.upload(uploadParams, (err, data) => {
+        const commandPut = new PutObjectCommand(uploadParams);
+        S3.send(commandPut, (err, data) => {
             if (err) {
                 return reject({
                     error: 1,
