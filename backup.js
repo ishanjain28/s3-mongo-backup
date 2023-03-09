@@ -4,12 +4,12 @@ const path = require('path'),
     fs = require('fs'),
     os = require('os'),
     moment = require('moment'),
-    AWS = require('aws-sdk'),
     MongodbURI = require('mongodb-uri'),
     PROJECT_ROOT = process
     .mainModule
     .paths[0]
     .split("node_modules")[0];
+const { S3Client, CreateBucketCommand, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { spawn } = require('child_process');
 
 let BACKUP_PATH = (ZIP_NAME) => path.resolve(os.tmpdir(), ZIP_NAME);
@@ -57,11 +57,11 @@ function ValidateConfig(config) {
 }
 
 function AWSSetup(config) {
-    return new AWS.S3({
-            accessKeyId: config.s3.accessKey,
-            secretAccessKey: config.s3.secretKey,
-            region: config.s3.region
-        });
+    return new S3Client({
+        accessKeyId: config.s3.accessKey,
+        secretAccessKey: config.s3.secretKey,
+        region: config.s3.region
+    });
 }
 
 // Gets current time If Timezoneoffset is provided, then it'll get time in that
@@ -127,24 +127,24 @@ function BackupMongoDatabase(config) {
 
             mongoDumpProcess.stderr.on('data', (data) => {
                 console.log(`stderr: ${data}`);
-                });
+            });
 
             mongoDumpProcess.on('close', (code) => {
                 if (code == 0) {
-                resolve({
-                    error: 0,
+                    resolve({
+                        error: 0,
                         message: "Successfully Created Backup",
-                    backupName: DB_BACKUP_NAME
+                        backupName: DB_BACKUP_NAME
                     });
                 } else {
                 // Most likely, mongodump isn't installed or isn't accessible
                     reject({
                         error: 1,
                         message: `mongodump closed with code ${code}`
-                });
-            }
+                    });
+                }
 
-        });
+            });
 
         } catch (ex) {
             reject(ex);
@@ -180,13 +180,14 @@ function CreateBucket(S3, config) {
         region = config.s3.region;
 
     return new Promise((resolve, reject) => {
-        S3.createBucket({
+        const commandCreate = new CreateBucketCommand({
             Bucket: bucketName,
             ACL: accessPerm || "private",
             CreateBucketConfiguration: {
                 LocationConstraint: region
             }
-        }, (err, data) => {
+        });
+        S3.send(commandCreate, (err, data) => {
             if (err) {
                 reject({
                     error: 1,
@@ -220,8 +221,8 @@ function UploadFileToS3(S3, ZIP_NAME, config) {
             Key: `mongoDbBackups/${ZIP_NAME}`,
             Body: fileStream
         };
-
-        S3.upload(uploadParams, (err, data) => {
+        const commandPut = new PutObjectCommand(uploadParams);
+        S3.send(commandPut, (err, data) => {
             if (err) {
                 return reject({
                     error: 1,

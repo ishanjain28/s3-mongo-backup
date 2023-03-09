@@ -90,7 +90,7 @@ To see how to provide Timezone offset, Please refer to [moment#utcOffset](http:/
 MIT
 
 # Changelog
-
+    2.0.6 -> upgrade to AWS SDK V3
     2.0.5 -> using double quote to protect args password and archive
     2.0.4 -> add --quiet configuration, use spawn instead of exec
     2.0.3 -> Optimize AWSSetup function and fix update is not a function error
