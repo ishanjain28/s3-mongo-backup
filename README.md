@@ -29,7 +29,8 @@ var backupConfig = {
     },
     keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
     noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
-    timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+    timezoneOffset: 300, //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+    quiet: true  //Default true, If true add --quiet to mongodump. could be usefull under linux
 }
 ```
 
@@ -53,7 +54,8 @@ var backupConfig = {
     },
     keepLocalBackups: false,  //If true, It'll create a folder in project root with database's name and store backups in it and if it's false, It'll use temporary directory of OS
     noOfLocalBackups: 5, //This will only keep the most recent 5 backups and delete all older backups from local backup directory
-    timezoneOffset: 300 //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+    timezoneOffset: 300, //Timezone, It is assumed to be in hours if less than 16 and in minutes otherwise
+    quiet: true  //Default true, If true add --quiet to mongodump. could be usefull under linux
 }
 ```
 
@@ -89,6 +91,9 @@ MIT
 
 # Changelog
 
+    2.0.5 -> using double quote to protect args password and archive
+    2.0.4 -> add --quiet configuration, use spawn instead of exec
+    2.0.3 -> Optimize AWSSetup function and fix update is not a function error
     2.0.0 -> Uses MongoDB Connection URI directly, instead of asking for individual values of username, database name, password and database host.
 
 
